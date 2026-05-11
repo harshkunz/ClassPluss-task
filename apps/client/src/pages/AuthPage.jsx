@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import "../styles/auth.css";
 
 const LOGIN_TABS = [
   { id: "google", label: "Google" },
