@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import AdminUploadModal from "../components/AdminUploadModal";
 import SubscriptionModal from "../components/SubscriptionModal";
 import { apiRequest } from "../services/api";
 
@@ -98,7 +99,7 @@ const FALLBACK_TEMPLATES = [
   },
 ];
 
-export default function HomePage({ user }) {
+export default function HomePage({ user, onLogout }) {
   const [activeCategory, setActiveCategory] = useState("birthday");
   const [selectedTemplate, setSelectedTemplate] = useState(
     FALLBACK_TEMPLATES[0]
@@ -109,6 +110,7 @@ export default function HomePage({ user }) {
   const [plans, setPlans] = useState([]);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
+  const [showAdminUpload, setShowAdminUpload] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
@@ -204,6 +206,25 @@ export default function HomePage({ user }) {
     setSelectedTemplate(template);
   };
 
+  const handleAdminCreated = (template) => {
+    if (!template) return;
+    const mapped = {
+      id: template._id,
+      title: template.title,
+      category: template.category?._id || template.category,
+      categoryLabel: template.category?.name,
+      image: template.imageUrl,
+      overlayDefaults: template.overlayDefaults,
+      isPremium: template.isPremium || false,
+      premiumTier: template.premiumTier,
+    };
+
+    setTemplates((prev) => [mapped, ...prev]);
+    if (mapped.category === activeCategory) {
+      setSelectedTemplate(mapped);
+    }
+  };
+
   const handleShare = async () => {
     if (!selectedTemplate?.id) {
       setShareMessage("Select a template before sharing.");
@@ -266,7 +287,7 @@ export default function HomePage({ user }) {
               design.
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-full border border-white/10 bg-[#171a22] px-4 py-2">
+          <div className="flex flex-wrap items-center gap-3 rounded-full border border-white/10 bg-[#171a22] px-4 py-2">
             <img
               src={activeUser.photo}
               alt={activeUser.name}
@@ -280,6 +301,20 @@ export default function HomePage({ user }) {
                 {activeUser.name}
               </strong>
             </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#f4c95d]"
+            >
+              Logout
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdminUpload(true)}
+              className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#ff6f59]"
+            >
+              Admin Upload
+            </button>
           </div>
         </header>
 
@@ -445,6 +480,13 @@ export default function HomePage({ user }) {
         <SubscriptionModal
           plans={plans}
           onClose={() => setShowUpsell(false)}
+        />
+      )}
+      {showAdminUpload && (
+        <AdminUploadModal
+          categories={categories}
+          onClose={() => setShowAdminUpload(false)}
+          onCreated={handleAdminCreated}
         />
       )}
     </div>

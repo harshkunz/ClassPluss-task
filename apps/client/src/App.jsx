@@ -79,6 +79,13 @@ export default function App() {
     localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
   };
 
+  const handleLogout = () => {
+    setAuthToken(null);
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem(USER_KEY);
+  };
+
   const needsProfile = useMemo(() => {
     if (!user) return false;
     return !user.name || !user.profileImageUrl;
@@ -94,7 +101,7 @@ export default function App() {
 
   return (
     <>
-      <HomePage user={user} />
+      <HomePage user={user} onLogout={handleLogout} />
       {needsProfile && (
         <ProfileSetupModal user={user} onComplete={handleProfileComplete} />
       )}
