@@ -3,6 +3,8 @@ import {
   registerEmail,
   loginEmail,
   authGoogle,
+  authGoogleStart,
+  authGoogleCallback,
   authGuest,
   updateProfile,
   me,
@@ -37,6 +39,8 @@ router.post(
   handleValidation,
   authGoogle
 );
+router.get("/google/start", authGoogleStart);
+router.get("/google/callback", authGoogleCallback);
 router.post(
   "/guest",
   validateGuestAuth,

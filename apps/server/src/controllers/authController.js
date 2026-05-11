@@ -1,7 +1,11 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { signToken } from "../utils/jwt.js";
-import { verifyGoogleIdToken } from "../utils/google.js";
+import {
+  getGoogleAuthUrl,
+  getGoogleProfileFromCode,
+  verifyGoogleIdToken,
+} from "../utils/google.js";
 
 function toUserResponse(user) {
   return {
@@ -87,6 +91,55 @@ export async function authGoogle(req, res, next) {
 
     const token = signToken(user.id);
     return res.status(200).json({ token, user: toUserResponse(user) });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function authGoogleStart(req, res, next) {
+  try {
+    const url = getGoogleAuthUrl();
+    return res.redirect(url);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function authGoogleCallback(req, res, next) {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ message: "Missing OAuth code" });
+    }
+
+    const googleProfile = await getGoogleProfileFromCode(code);
+
+    let user = await User.findOne({ googleSub: googleProfile.sub });
+
+    if (!user && googleProfile.email) {
+      user = await User.findOne({ email: googleProfile.email });
+      if (user && !user.googleSub) {
+        user.googleSub = googleProfile.sub;
+        await user.save();
+      }
+    }
+
+    if (!user) {
+      user = await User.create({
+        email: googleProfile.email,
+        provider: "google",
+        googleSub: googleProfile.sub,
+        name: googleProfile.name || null,
+        profileImageUrl: googleProfile.picture || null,
+      });
+    }
+
+    const token = signToken(user.id);
+    const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+    const redirectUrl = new URL("/auth/callback", clientOrigin);
+    redirectUrl.searchParams.set("token", token);
+
+    return res.redirect(redirectUrl.toString());
   } catch (error) {
     return next(error);
   }

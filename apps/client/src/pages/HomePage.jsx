@@ -103,8 +103,7 @@ export default function HomePage({ user }) {
 
   const activeUser = {
     name: user?.name || FALLBACK_USER.name,
-    photo:
-      user?.profileImageUrl || user?.photo || FALLBACK_USER.photo,
+    photo: user?.profileImageUrl || user?.photo || FALLBACK_USER.photo,
   };
 
   useEffect(() => {
