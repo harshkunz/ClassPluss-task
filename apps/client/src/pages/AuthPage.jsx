@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { apiRequest, getAuthToken, setAuthToken } from "../services/api";
 
 const LOGIN_TABS = [
   { id: "google", label: "Google" },
@@ -9,13 +10,18 @@ const LOGIN_TABS = [
 const DEFAULT_AVATAR =
   "https://images.unsplash.com/photo-1502685104226-ee32379fefbe?auto=format&fit=crop&w=400&q=80";
 
-export default function AuthPage() {
+export default function AuthPage({ onAuth }) {
   const [activeTab, setActiveTab] = useState("google");
   const [fullName, setFullName] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [guestName, setGuestName] = useState("");
+  const [googleIdToken, setGoogleIdToken] = useState("");
+  const [emailMode, setEmailMode] = useState("login");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const avatarUrl = useMemo(() => {
     if (!photoFile) return DEFAULT_AVATAR;
@@ -27,11 +33,88 @@ export default function AuthPage() {
   const handlePhotoChange = (event) => {
     const file = event.target.files && event.target.files[0];
     setPhotoFile(file || null);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotoUrl(typeof reader.result === "string" ? reader.result : "");
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    // TODO: wire to backend endpoints.
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      if (activeTab === "google") {
+        const data = await apiRequest("/api/auth/google", {
+          method: "POST",
+          body: JSON.stringify({ idToken: googleIdToken }),
+        });
+        setAuthToken(data.token);
+        onAuth?.(data.token, data.user);
+        return;
+      }
+
+      if (activeTab === "email") {
+        const endpoint =
+          emailMode === "register"
+            ? "/api/auth/email/register"
+            : "/api/auth/email/login";
+        const payload =
+          emailMode === "register"
+            ? { email, password, name: fullName || undefined }
+            : { email, password };
+
+        const data = await apiRequest(endpoint, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        setAuthToken(data.token);
+        onAuth?.(data.token, data.user);
+        return;
+      }
+
+      if (activeTab === "guest") {
+        const data = await apiRequest("/api/auth/guest", {
+          method: "POST",
+          body: JSON.stringify({ name: guestName || fullName || undefined }),
+        });
+        setAuthToken(data.token);
+        onAuth?.(data.token, data.user);
+      }
+    } catch (error) {
+      setErrorMessage(error.message || "Authentication failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleProfileSave = async () => {
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      if (!getAuthToken()) {
+        setErrorMessage("Please sign in before saving your profile.");
+        return;
+      }
+      const payload = {
+        name: fullName || undefined,
+        profileImageUrl: photoUrl || undefined,
+      };
+      const data = await apiRequest("/api/auth/profile", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      onAuth?.(getAuthToken(), data.user);
+    } catch (error) {
+      setErrorMessage(error.message || "Profile update failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -82,11 +165,22 @@ export default function AuthPage() {
           <form className="mt-6 grid gap-5" onSubmit={handleSubmit}>
             {activeTab === "google" && (
               <div className="grid gap-4">
+                <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
+                  Google ID token
+                  <input
+                    type="text"
+                    placeholder="Paste Google ID token"
+                    value={googleIdToken}
+                    onChange={(event) => setGoogleIdToken(event.target.value)}
+                    className="rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#f7724e] focus:ring-4 focus:ring-[#f7724e]/20"
+                  />
+                </label>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="rounded-2xl bg-gradient-to-r from-[#f7724e] to-[#ffb071] px-5 py-3 text-base font-semibold text-white shadow-[0_16px_30px_rgba(247,114,78,0.25)]"
                 >
-                  Continue with Google
+                  {isSubmitting ? "Connecting..." : "Continue with Google"}
                 </button>
                 <p className="text-sm text-[#6f6c73]">
                   We will request your name and photo for your greeting card.
@@ -120,9 +214,27 @@ export default function AuthPage() {
                 </label>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="rounded-2xl bg-gradient-to-r from-[#f7724e] to-[#ffb071] px-5 py-3 text-base font-semibold text-white shadow-[0_16px_30px_rgba(247,114,78,0.25)]"
                 >
-                  Sign in with Email
+                  {isSubmitting
+                    ? "Submitting..."
+                    : emailMode === "register"
+                      ? "Create account"
+                      : "Sign in with Email"}
+                </button>
+                <button
+                  type="button"
+                  className="text-left text-sm font-semibold text-[#2c5d63]"
+                  onClick={() =>
+                    setEmailMode((mode) =>
+                      mode === "login" ? "register" : "login"
+                    )
+                  }
+                >
+                  {emailMode === "login"
+                    ? "New here? Create an account"
+                    : "Already have an account? Sign in"}
                 </button>
               </div>
             )}
@@ -141,13 +253,19 @@ export default function AuthPage() {
                 </label>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className="rounded-2xl bg-gradient-to-r from-[#f7724e] to-[#ffb071] px-5 py-3 text-base font-semibold text-white shadow-[0_16px_30px_rgba(247,114,78,0.25)]"
                 >
-                  Continue as Guest
+                  {isSubmitting ? "Submitting..." : "Continue as Guest"}
                 </button>
               </div>
             )}
           </form>
+          {errorMessage && (
+            <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {errorMessage}
+            </p>
+          )}
         </section>
 
         <section className="rounded-[32px] border border-black/10 bg-white p-9 shadow-[0_20px_50px_rgba(28,27,31,0.1)]">
@@ -202,8 +320,10 @@ export default function AuthPage() {
           <button
             className="mt-5 w-full rounded-2xl bg-[#2c5d63] px-5 py-3 text-base font-semibold text-white"
             type="button"
+            onClick={handleProfileSave}
+            disabled={isSubmitting}
           >
-            Save profile details
+            {isSubmitting ? "Saving..." : "Save profile details"}
           </button>
         </section>
       </main>

@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "../services/api";
 
-const USER = {
+const FALLBACK_USER = {
   name: "Aanya Sharma",
   photo:
     "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
 };
 
-const CATEGORIES = [
+const FALLBACK_CATEGORIES = [
   {
     id: "birthday",
     title: "Birthday",
@@ -29,7 +30,7 @@ const CATEGORIES = [
   },
 ];
 
-const TEMPLATES = [
+const FALLBACK_TEMPLATES = [
   {
     id: "t1",
     title: "Golden Glow",
@@ -88,24 +89,86 @@ const TEMPLATES = [
   },
 ];
 
-const API_BASE_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://localhost:5000";
-
-export default function HomePage() {
+export default function HomePage({ user }) {
   const [activeCategory, setActiveCategory] = useState("birthday");
-  const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
+  const [selectedTemplate, setSelectedTemplate] = useState(
+    FALLBACK_TEMPLATES[0]
+  );
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+  const [templates, setTemplates] = useState(FALLBACK_TEMPLATES);
+  const [loadError, setLoadError] = useState("");
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
 
+  const activeUser = {
+    name: user?.name || FALLBACK_USER.name,
+    photo:
+      user?.profileImageUrl || user?.photo || FALLBACK_USER.photo,
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTemplates = async () => {
+      try {
+        const [categoryData, templateData] = await Promise.all([
+          apiRequest("/api/templates/categories"),
+          apiRequest("/api/templates"),
+        ]);
+
+        if (!isMounted) return;
+
+        const mappedCategories = (categoryData.categories || []).map(
+          (category) => ({
+            id: category._id,
+            title: category.name,
+            count: category.count || 0,
+            slug: category.slug,
+          })
+        );
+
+        const mappedTemplates = (templateData.templates || []).map(
+          (template) => ({
+            id: template._id,
+            title: template.title,
+            category: template.category?._id || template.category,
+            categoryLabel: template.category?.name,
+            image: template.imageUrl,
+            overlayDefaults: template.overlayDefaults,
+          })
+        );
+
+        if (mappedCategories.length > 0) {
+          setCategories(mappedCategories);
+          setActiveCategory(mappedCategories[0].id);
+        }
+
+        if (mappedTemplates.length > 0) {
+          setTemplates(mappedTemplates);
+          setSelectedTemplate(mappedTemplates[0]);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError("Unable to load templates. Showing demo data.");
+        }
+      }
+    };
+
+    fetchTemplates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filteredTemplates = useMemo(() => {
-    return TEMPLATES.filter((template) => template.category === activeCategory);
-  }, [activeCategory]);
+    return templates.filter((template) => template.category === activeCategory);
+  }, [activeCategory, templates]);
 
   const handleCategoryChange = (categoryId) => {
     setActiveCategory(categoryId);
-    const nextTemplate = TEMPLATES.find(
+    const nextTemplate = templates.find(
       (template) => template.category === categoryId
     );
     if (nextTemplate) {
@@ -114,6 +177,10 @@ export default function HomePage() {
   };
 
   const handleShare = async () => {
+    if (!selectedTemplate?.id) {
+      setShareMessage("Select a template before sharing.");
+      return;
+    }
     setIsSharing(true);
     setShareMessage("Rendering your share image...");
 
@@ -125,8 +192,8 @@ export default function HomePage() {
         },
         body: JSON.stringify({
           templateId: selectedTemplate.id,
-          name: USER.name,
-          photoUrl: USER.photo,
+          name: activeUser.name,
+          photoUrl: activeUser.photo,
         }),
       });
 
@@ -182,21 +249,29 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-3 rounded-full border border-white/10 bg-[#171a22] px-4 py-2">
             <img
-              src={USER.photo}
-              alt={USER.name}
+              src={activeUser.photo}
+              alt={activeUser.name}
               className="h-11 w-11 rounded-full object-cover"
             />
             <div>
               <span className="text-[11px] uppercase tracking-[0.2em] text-[#b6b2ab]">
                 Welcome back
               </span>
-              <strong className="block text-sm font-semibold">{USER.name}</strong>
+              <strong className="block text-sm font-semibold">
+                {activeUser.name}
+              </strong>
             </div>
           </div>
         </header>
 
+        {loadError && (
+          <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {loadError}
+          </p>
+        )}
+
         <section className="mb-7 flex flex-wrap gap-3">
-          {CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <button
               key={category.id}
               type="button"
@@ -244,18 +319,19 @@ export default function HomePage() {
                     Live Preview
                   </div>
                   <div className="absolute bottom-4 left-4 text-lg font-semibold drop-shadow-[0_6px_16px_rgba(0,0,0,0.5)]">
-                    {USER.name}
+                    {activeUser.name}
                   </div>
                   <img
                     className="absolute bottom-4 right-4 h-14 w-14 rounded-full border-2 border-white object-cover"
-                    src={USER.photo}
-                    alt={USER.name}
+                    src={activeUser.photo}
+                    alt={activeUser.name}
                   />
                 </div>
                 <div className="p-4">
                   <h3 className="text-base font-semibold">{template.title}</h3>
                   <p className="mt-1 text-sm text-[#b6b2ab]">
-                    {CATEGORIES.find((c) => c.id === template.category)?.title}
+                    {template.categoryLabel ||
+                      categories.find((c) => c.id === template.category)?.title}
                   </p>
                 </div>
               </button>
@@ -278,8 +354,8 @@ export default function HomePage() {
               <div className="absolute inset-0 flex flex-col items-start justify-end gap-3 bg-gradient-to-b from-transparent via-black/10 to-black/60 p-5">
                 <span className="text-2xl font-semibold">{USER.name}</span>
                 <img
-                  src={USER.photo}
-                  alt={USER.name}
+                  src={activeUser.photo}
+                  alt={activeUser.name}
                   className="h-[70px] w-[70px] rounded-[24px] border-4 border-white object-cover"
                 />
               </div>
@@ -288,7 +364,8 @@ export default function HomePage() {
               <div>
                 <h3 className="text-lg font-semibold">{selectedTemplate.title}</h3>
                 <p className="text-sm text-[#b6b2ab]">
-                  {CATEGORIES.find((c) => c.id === selectedTemplate.category)?.title}
+                  {selectedTemplate.categoryLabel ||
+                    categories.find((c) => c.id === selectedTemplate.category)?.title}
                 </p>
               </div>
               <div className="flex items-center gap-2">
