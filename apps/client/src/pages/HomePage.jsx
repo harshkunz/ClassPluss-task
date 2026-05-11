@@ -89,9 +89,16 @@ const TEMPLATES = [
   },
 ];
 
+const API_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "http://localhost:5000";
+
 export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState("birthday");
   const [selectedTemplate, setSelectedTemplate] = useState(TEMPLATES[0]);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
 
   const filteredTemplates = useMemo(() => {
     return TEMPLATES.filter((template) => template.category === activeCategory);
@@ -104,6 +111,52 @@ export default function HomePage() {
     );
     if (nextTemplate) {
       setSelectedTemplate(nextTemplate);
+    }
+  };
+
+  const handleShare = async () => {
+    setIsSharing(true);
+    setShareMessage("Rendering your share image...");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/share/render`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          templateId: selectedTemplate.id,
+          name: USER.name,
+          photoUrl: USER.photo,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Share render failed");
+      }
+
+      const data = await response.json();
+      const imageUrl = data.imageUrl;
+
+      setShareUrl(imageUrl);
+      setShareMessage("Ready to share.");
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "ClassPlus Greeting",
+          text: "Check out my personalized template!",
+          url: imageUrl,
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(imageUrl);
+        setShareMessage("Link copied. Share it anywhere.");
+      } else {
+        setShareMessage("Copy this link to share.");
+      }
+    } catch (error) {
+      setShareMessage("Unable to share right now. Try again in a moment.");
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -194,9 +247,33 @@ export default function HomePage() {
               <h3>{selectedTemplate.title}</h3>
               <p>{CATEGORIES.find((c) => c.id === selectedTemplate.category)?.title}</p>
             </div>
-            <button type="button" className="preview-action">
-              Customize Template
-            </button>
+            <div className="preview-actions">
+              <button type="button" className="preview-secondary">
+                Customize Template
+              </button>
+              <button
+                type="button"
+                className="preview-action"
+                onClick={handleShare}
+                disabled={isSharing}
+              >
+                {isSharing ? "Sharing..." : "Share"}
+              </button>
+            </div>
+          </div>
+          <div className="share-panel">
+            <div>
+              <h4>Share via</h4>
+              <p>WhatsApp, Instagram, Email, and more using your device share sheet.</p>
+            </div>
+            <div className="share-status">
+              <span>{shareMessage || "Your share link will appear here."}</span>
+              {shareUrl && (
+                <a href={shareUrl} target="_blank" rel="noreferrer">
+                  View image
+                </a>
+              )}
+            </div>
           </div>
         </aside>
       </section>
