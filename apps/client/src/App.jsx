@@ -101,7 +101,11 @@ export default function App() {
 
   return (
     <>
-      <HomePage user={user} onLogout={handleLogout} />
+      <HomePage
+        user={user}
+        onLogout={handleLogout}
+        onProfileUpdated={handleProfileComplete}
+      />
       {needsProfile && (
         <ProfileSetupModal user={user} onComplete={handleProfileComplete} />
       )}

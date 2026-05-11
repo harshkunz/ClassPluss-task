@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import { createCategory } from "../controllers/adminCategoryController.js";
 import { createTemplate } from "../controllers/adminTemplateController.js";
 
 const router = express.Router();
@@ -19,5 +20,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 router.post("/templates", upload.single("image"), createTemplate);
+router.post("/categories", createCategory);
 
 export default router;

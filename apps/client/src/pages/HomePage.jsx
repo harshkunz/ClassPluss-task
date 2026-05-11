@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminUploadModal from "../components/AdminUploadModal";
+import ProfileEditModal from "../components/ProfileEditModal";
 import SubscriptionModal from "../components/SubscriptionModal";
 import { apiRequest } from "../services/api";
 
@@ -99,7 +100,7 @@ const FALLBACK_TEMPLATES = [
   },
 ];
 
-export default function HomePage({ user, onLogout }) {
+export default function HomePage({ user, onLogout, onProfileUpdated }) {
   const [activeCategory, setActiveCategory] = useState("birthday");
   const [selectedTemplate, setSelectedTemplate] = useState(
     FALLBACK_TEMPLATES[0]
@@ -111,6 +112,7 @@ export default function HomePage({ user, onLogout }) {
   const [isPremiumUser, setIsPremiumUser] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
   const [showAdminUpload, setShowAdminUpload] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
@@ -273,7 +275,59 @@ export default function HomePage({ user, onLogout }) {
         <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:120px_120px,40px_40px] opacity-30" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-14">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-10">
+        <nav className="mb-10 flex flex-wrap items-center justify-between gap-4 rounded-full border border-white/10 bg-[#171a22]/90 px-5 py-3 shadow-[0_20px_40px_rgba(10,12,18,0.35)] backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d212b] text-xs font-bold uppercase tracking-[0.2em] text-[#f4c95d]">
+              CP
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-[#b6b2ab]">
+                ClassPlus
+              </p>
+              <p className="text-sm font-semibold">Template Studio</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0f1219] px-3 py-2">
+              <img
+                src={activeUser.photo}
+                alt={activeUser.name}
+                className="h-9 w-9 rounded-full object-cover"
+              />
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[#b6b2ab]">
+                  Welcome back
+                </span>
+                <strong className="block text-xs font-semibold">
+                  {activeUser.name}
+                </strong>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowProfileEdit(true)}
+              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#b6b2ab]"
+            >
+              Edit Profile
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdminUpload(true)}
+              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#ff6f59]"
+            >
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#f4c95d]"
+            >
+              Logout
+            </button>
+          </div>
+        </nav>
+
         <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f4c95d]">
@@ -286,35 +340,6 @@ export default function HomePage({ user, onLogout }) {
               Browse curated collections, then preview your name and photo on every
               design.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 rounded-full border border-white/10 bg-[#171a22] px-4 py-2">
-            <img
-              src={activeUser.photo}
-              alt={activeUser.name}
-              className="h-11 w-11 rounded-full object-cover"
-            />
-            <div>
-              <span className="text-[11px] uppercase tracking-[0.2em] text-[#b6b2ab]">
-                Welcome back
-              </span>
-              <strong className="block text-sm font-semibold">
-                {activeUser.name}
-              </strong>
-            </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#f4c95d]"
-            >
-              Logout
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAdminUpload(true)}
-              className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#ff6f59]"
-            >
-              Admin Upload
-            </button>
           </div>
         </header>
 
@@ -487,6 +512,16 @@ export default function HomePage({ user, onLogout }) {
           categories={categories}
           onClose={() => setShowAdminUpload(false)}
           onCreated={handleAdminCreated}
+          onCategoryCreated={(category) =>
+            setCategories((prev) => [category, ...prev])
+          }
+        />
+      )}
+      {showProfileEdit && (
+        <ProfileEditModal
+          user={user}
+          onClose={() => setShowProfileEdit(false)}
+          onSaved={onProfileUpdated}
         />
       )}
     </div>

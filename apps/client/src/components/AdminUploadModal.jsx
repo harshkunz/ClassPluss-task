@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
-import { API_BASE_URL } from "../services/api";
+import { API_BASE_URL, apiRequest } from "../services/api";
 
-export default function AdminUploadModal({ categories, onClose, onCreated }) {
+export default function AdminUploadModal({
+  categories,
+  onClose,
+  onCreated,
+  onCategoryCreated,
+}) {
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
-  const [adminKey, setAdminKey] = useState("");
   const [file, setFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [message, setMessage] = useState("");
 
   const previewUrl = useMemo(() => {
@@ -20,7 +25,7 @@ export default function AdminUploadModal({ categories, onClose, onCreated }) {
     setMessage("");
 
     try {
-      if (!title || !categoryId || !file || !adminKey) {
+      if (!title || !categoryId || !file) {
         setMessage("Please fill all fields.");
         return;
       }
@@ -32,9 +37,6 @@ export default function AdminUploadModal({ categories, onClose, onCreated }) {
 
       const response = await fetch(`${API_BASE_URL}/api/admin/templates`, {
         method: "POST",
-        headers: {
-          "x-admin-key": adminKey,
-        },
         body: formData,
       });
 
@@ -52,13 +54,46 @@ export default function AdminUploadModal({ categories, onClose, onCreated }) {
     }
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      setMessage("Enter a category name first.");
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage("");
+
+    try {
+      const data = await apiRequest("/api/admin/categories", {
+        method: "POST",
+        body: JSON.stringify({ name: newCategoryName.trim() }),
+      });
+
+      const created = {
+        id: data.category._id,
+        title: data.category.name,
+        count: 0,
+        slug: data.category.slug,
+      };
+
+      onCategoryCreated?.(created);
+      setCategoryId(created.id);
+      setNewCategoryName("");
+      setMessage("Category created.");
+    } catch (error) {
+      setMessage(error.message || "Unable to create category.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
       <div className="w-full max-w-2xl rounded-3xl bg-white p-8 text-[#1c1b1f] shadow-[0_30px_60px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#ff6f59]">
-              Admin Upload
+              Upload
             </p>
             <h2 className="mt-2 text-2xl font-semibold">Add a new template</h2>
             <p className="mt-2 text-sm text-[#6f6c73]">
@@ -75,15 +110,6 @@ export default function AdminUploadModal({ categories, onClose, onCreated }) {
         </div>
 
         <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-          <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
-            Admin key
-            <input
-              type="password"
-              value={adminKey}
-              onChange={(event) => setAdminKey(event.target.value)}
-              className="rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#2c5d63] focus:ring-4 focus:ring-[#2c5d63]/20"
-            />
-          </label>
           <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
             Title
             <input
@@ -108,6 +134,28 @@ export default function AdminUploadModal({ categories, onClose, onCreated }) {
               ))}
             </select>
           </label>
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold text-[#6f6c73]">
+              New category
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(event) => setNewCategoryName(event.target.value)}
+                placeholder="Add new category"
+                className="flex-1 rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#2c5d63] focus:ring-4 focus:ring-[#2c5d63]/20"
+              />
+              <button
+                type="button"
+                onClick={handleCreateCategory}
+                disabled={isSaving}
+                className="rounded-xl border border-black/10 px-4 py-3 text-sm font-semibold text-[#2c5d63]"
+              >
+                Create
+              </button>
+            </div>
+          </div>
           <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
             Image
             <input
