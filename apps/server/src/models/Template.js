@@ -46,6 +46,15 @@ const templateSchema = new mongoose.Schema(
       type: overlayDefaultsSchema,
       default: () => ({}),
     },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    premiumTier: {
+      type: String,
+      enum: ["gold", "pro", "enterprise"],
+      default: "pro",
+    },
     isActive: {
       type: Boolean,
       default: true,

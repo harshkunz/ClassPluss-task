@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import authRoutes from "./routes/authRoutes.js";
+import billingRoutes from "./routes/billingRoutes.js";
 import shareRoutes from "./routes/shareRoutes.js";
 import templateRoutes from "./routes/templateRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
@@ -27,6 +28,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/billing", billingRoutes);
 app.use("/api/share", shareRoutes);
 app.use("/api/templates", templateRoutes);
 

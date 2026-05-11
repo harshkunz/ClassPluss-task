@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SubscriptionModal from "../components/SubscriptionModal";
 import { apiRequest } from "../services/api";
 
 const FALLBACK_USER = {
@@ -35,6 +36,7 @@ const FALLBACK_TEMPLATES = [
     id: "t1",
     title: "Golden Glow",
     category: "birthday",
+    isPremium: false,
     image:
       "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80",
   },
@@ -42,6 +44,7 @@ const FALLBACK_TEMPLATES = [
     id: "t2",
     title: "Blush Petals",
     category: "anniversary",
+    isPremium: true,
     image:
       "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80",
   },
@@ -49,6 +52,7 @@ const FALLBACK_TEMPLATES = [
     id: "t3",
     title: "Neon Diwali",
     category: "festivals",
+    isPremium: true,
     image:
       "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=800&q=80",
   },
@@ -56,6 +60,7 @@ const FALLBACK_TEMPLATES = [
     id: "t4",
     title: "Sunlit Bloom",
     category: "birthday",
+    isPremium: false,
     image:
       "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&q=80",
   },
@@ -63,6 +68,7 @@ const FALLBACK_TEMPLATES = [
     id: "t5",
     title: "Modern Spark",
     category: "festivals",
+    isPremium: true,
     image:
       "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=800&q=80",
   },
@@ -70,6 +76,7 @@ const FALLBACK_TEMPLATES = [
     id: "t6",
     title: "Satin Rose",
     category: "anniversary",
+    isPremium: false,
     image:
       "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=800&q=80",
   },
@@ -77,6 +84,7 @@ const FALLBACK_TEMPLATES = [
     id: "t7",
     title: "Festival Lights",
     category: "festivals",
+    isPremium: false,
     image:
       "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=80",
   },
@@ -84,6 +92,7 @@ const FALLBACK_TEMPLATES = [
     id: "t8",
     title: "Soft Gratitude",
     category: "gratitude",
+    isPremium: true,
     image:
       "https://images.unsplash.com/photo-1459666644539-a9755287d6b0?auto=format&fit=crop&w=800&q=80",
   },
@@ -97,6 +106,9 @@ export default function HomePage({ user }) {
   const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
   const [templates, setTemplates] = useState(FALLBACK_TEMPLATES);
   const [loadError, setLoadError] = useState("");
+  const [plans, setPlans] = useState([]);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [showUpsell, setShowUpsell] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
@@ -111,10 +123,13 @@ export default function HomePage({ user }) {
 
     const fetchTemplates = async () => {
       try {
-        const [categoryData, templateData] = await Promise.all([
-          apiRequest("/api/templates/categories"),
-          apiRequest("/api/templates"),
-        ]);
+        const [categoryData, templateData, planData, statusData] =
+          await Promise.all([
+            apiRequest("/api/templates/categories"),
+            apiRequest("/api/templates"),
+            apiRequest("/api/billing/plans"),
+            apiRequest("/api/billing/status"),
+          ]);
 
         if (!isMounted) return;
 
@@ -135,6 +150,8 @@ export default function HomePage({ user }) {
             categoryLabel: template.category?.name,
             image: template.imageUrl,
             overlayDefaults: template.overlayDefaults,
+            isPremium: template.isPremium || false,
+            premiumTier: template.premiumTier,
           })
         );
 
@@ -147,6 +164,9 @@ export default function HomePage({ user }) {
           setTemplates(mappedTemplates);
           setSelectedTemplate(mappedTemplates[0]);
         }
+
+        setPlans(planData.plans || []);
+        setIsPremiumUser(Boolean(statusData.isPremium));
       } catch (error) {
         if (isMounted) {
           setLoadError("Unable to load templates. Showing demo data.");
@@ -175,6 +195,15 @@ export default function HomePage({ user }) {
     }
   };
 
+  const handleTemplateSelect = (template) => {
+    if (template.isPremium && !isPremiumUser) {
+      setShowUpsell(true);
+      return;
+    }
+
+    setSelectedTemplate(template);
+  };
+
   const handleShare = async () => {
     if (!selectedTemplate?.id) {
       setShareMessage("Select a template before sharing.");
@@ -184,23 +213,14 @@ export default function HomePage({ user }) {
     setShareMessage("Rendering your share image...");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/share/render`, {
+      const data = await apiRequest("/api/share/render", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           templateId: selectedTemplate.id,
           name: activeUser.name,
           photoUrl: activeUser.photo,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Share render failed");
-      }
-
-      const data = await response.json();
       const imageUrl = data.imageUrl;
 
       setShareUrl(imageUrl);
@@ -306,7 +326,7 @@ export default function HomePage({ user }) {
                     ? "border-[#f4c95d]/60 translate-y-[-4px]"
                     : "border-transparent"
                 } bg-[#171a22] text-left shadow-[0_30px_60px_rgba(10,12,18,0.45)]`}
-                onClick={() => setSelectedTemplate(template)}
+                onClick={() => handleTemplateSelect(template)}
               >
                 <div className="relative h-44 overflow-hidden">
                   <img
@@ -316,6 +336,15 @@ export default function HomePage({ user }) {
                   />
                   <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
                     Live Preview
+                  </div>
+                  <div
+                    className={`absolute right-3 top-3 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
+                      template.isPremium
+                        ? "bg-[#ff6f59] text-white"
+                        : "bg-[#f4c95d] text-[#151515]"
+                    }`}
+                  >
+                    {template.isPremium ? "Premium" : "Free"}
                   </div>
                   <div className="absolute bottom-4 left-4 text-lg font-semibold drop-shadow-[0_6px_16px_rgba(0,0,0,0.5)]">
                     {activeUser.name}
@@ -332,6 +361,9 @@ export default function HomePage({ user }) {
                     {template.categoryLabel ||
                       categories.find((c) => c.id === template.category)?.title}
                   </p>
+                  <span className="mt-2 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#b6b2ab]">
+                    {template.isPremium ? "Premium" : "Free"}
+                  </span>
                 </div>
               </button>
             ))}
@@ -351,7 +383,7 @@ export default function HomePage({ user }) {
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 flex flex-col items-start justify-end gap-3 bg-gradient-to-b from-transparent via-black/10 to-black/60 p-5">
-                <span className="text-2xl font-semibold">{USER.name}</span>
+                <span className="text-2xl font-semibold">{activeUser.name}</span>
                 <img
                   src={activeUser.photo}
                   alt={activeUser.name}
@@ -409,6 +441,12 @@ export default function HomePage({ user }) {
           </aside>
         </section>
       </div>
+      {showUpsell && plans.length > 0 && (
+        <SubscriptionModal
+          plans={plans}
+          onClose={() => setShowUpsell(false)}
+        />
+      )}
     </div>
   );
 }
