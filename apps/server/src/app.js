@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 
 const authRoutes = require("./routes/authRoutes");
+const templateRoutes = require("./routes/templateRoutes");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
 
 const app = express();
@@ -23,6 +24,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/templates", templateRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
