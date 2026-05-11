@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const templateCategorySchema = new mongoose.Schema(
   {
@@ -30,4 +30,9 @@ const templateCategorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("TemplateCategory", templateCategorySchema);
+const TemplateCategory = mongoose.model(
+  "TemplateCategory",
+  templateCategorySchema
+);
+
+export default TemplateCategory;

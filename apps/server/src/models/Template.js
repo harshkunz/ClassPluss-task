@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const overlayPositionSchema = new mongoose.Schema(
   {
@@ -54,4 +54,6 @@ const templateSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Template", templateSchema);
+const Template = mongoose.model("Template", templateSchema);
+
+export default Template;

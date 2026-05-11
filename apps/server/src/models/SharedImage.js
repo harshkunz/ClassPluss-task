@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const sharedImageSchema = new mongoose.Schema(
   {
@@ -33,4 +33,6 @@ const sharedImageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("SharedImage", sharedImageSchema);
+const SharedImage = mongoose.model("SharedImage", sharedImageSchema);
+
+export default SharedImage;

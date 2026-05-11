@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-function signToken(userId) {
+export function signToken(userId) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error("JWT_SECRET is not set");
@@ -11,7 +11,7 @@ function signToken(userId) {
   });
 }
 
-function verifyToken(token) {
+export function verifyToken(token) {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error("JWT_SECRET is not set");
@@ -19,5 +19,3 @@ function verifyToken(token) {
 
   return jwt.verify(token, secret);
 }
-
-module.exports = { signToken, verifyToken };

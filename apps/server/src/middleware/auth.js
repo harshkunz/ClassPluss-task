@@ -1,7 +1,7 @@
-const User = require("../models/User");
-const { verifyToken } = require("../utils/jwt");
+import User from "../models/User.js";
+import { verifyToken } from "../utils/jwt.js";
 
-async function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
@@ -25,5 +25,3 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 }
-
-module.exports = { requireAuth };

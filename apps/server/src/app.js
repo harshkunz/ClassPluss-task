@@ -1,14 +1,13 @@
-const cors = require("cors");
-const express = require("express");
-const helmet = require("helmet");
-const morgan = require("morgan");
+import path from "path";
+import cors from "cors";
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
 
-const path = require("path");
-
-const authRoutes = require("./routes/authRoutes");
-const shareRoutes = require("./routes/shareRoutes");
-const templateRoutes = require("./routes/templateRoutes");
-const { errorHandler, notFound } = require("./middleware/errorHandler");
+import authRoutes from "./routes/authRoutes.js";
+import shareRoutes from "./routes/shareRoutes.js";
+import templateRoutes from "./routes/templateRoutes.js";
+import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -34,4 +33,4 @@ app.use("/api/templates", templateRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

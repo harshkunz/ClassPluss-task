@@ -1,9 +1,9 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   listCategories,
   listTemplates,
   getTemplate,
-} = require("../controllers/templateController");
+} from "../controllers/templateController.js";
 
 const router = express.Router();
 
@@ -11,4 +11,4 @@ router.get("/categories", listCategories);
 router.get("/", listTemplates);
 router.get("/:id", getTemplate);
 
-module.exports = router;
+export default router;

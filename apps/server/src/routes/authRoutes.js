@@ -1,21 +1,21 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   registerEmail,
   loginEmail,
   authGoogle,
   authGuest,
   updateProfile,
   me,
-} = require("../controllers/authController");
-const {
+} from "../controllers/authController.js";
+import {
   validateEmailRegister,
   validateEmailLogin,
   validateGoogleAuth,
   validateGuestAuth,
   validateProfileUpdate,
   handleValidation,
-} = require("../validators/authValidators");
-const { requireAuth } = require("../middleware/auth");
+} from "../validators/authValidators.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -52,4 +52,4 @@ router.put(
   updateProfile
 );
 
-module.exports = router;
+export default router;

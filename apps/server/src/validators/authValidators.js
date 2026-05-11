@@ -1,4 +1,4 @@
-const { body, validationResult } = require("express-validator");
+import { body, validationResult } from "express-validator";
 
 const validateEmailRegister = [
   body("email").isEmail().withMessage("Valid email is required"),
@@ -35,7 +35,7 @@ function handleValidation(req, res, next) {
   return next();
 }
 
-module.exports = {
+export {
   validateEmailRegister,
   validateEmailLogin,
   validateGoogleAuth,

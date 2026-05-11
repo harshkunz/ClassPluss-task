@@ -1,9 +1,9 @@
-const express = require("express");
-const { renderShareImage, getShare } = require("../controllers/shareController");
+import express from "express";
+import { renderShareImage, getShare } from "../controllers/shareController.js";
 
 const router = express.Router();
 
 router.post("/render", renderShareImage);
 router.get("/:shareId", getShare);
 
-module.exports = router;
+export default router;

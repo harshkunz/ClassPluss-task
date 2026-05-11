@@ -1,4 +1,4 @@
-const { OAuth2Client } = require("google-auth-library");
+import { OAuth2Client } from "google-auth-library";
 
 function getGoogleClient() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -9,7 +9,7 @@ function getGoogleClient() {
   return new OAuth2Client(clientId);
 }
 
-async function verifyGoogleIdToken(idToken) {
+export async function verifyGoogleIdToken(idToken) {
   const client = getGoogleClient();
   const ticket = await client.verifyIdToken({
     idToken,
@@ -28,5 +28,3 @@ async function verifyGoogleIdToken(idToken) {
     picture: payload.picture,
   };
 }
-
-module.exports = { verifyGoogleIdToken };

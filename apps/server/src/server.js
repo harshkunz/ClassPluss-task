@@ -1,6 +1,6 @@
-const app = require("./app");
-const { connectDb } = require("./config/db");
-const { loadEnv } = require("./config/env");
+import app from "./app.js";
+import { connectDb } from "./config/db.js";
+import { loadEnv } from "./config/env.js";
 
 loadEnv();
 

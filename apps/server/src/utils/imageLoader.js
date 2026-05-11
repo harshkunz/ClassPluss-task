@@ -1,6 +1,6 @@
-const fs = require("fs/promises");
+import fs from "fs/promises";
 
-async function loadImageBuffer(source) {
+export async function loadImageBuffer(source) {
   if (!source) {
     throw new Error("Image source is required");
   }
@@ -26,5 +26,3 @@ async function loadImageBuffer(source) {
 
   return fs.readFile(source);
 }
-
-module.exports = { loadImageBuffer };

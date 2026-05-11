@@ -1,6 +1,6 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-async function connectDb(uri) {
+export async function connectDb(uri) {
   if (!uri) {
     throw new Error("MONGODB_URI is not set");
   }
@@ -8,5 +8,3 @@ async function connectDb(uri) {
   mongoose.set("strictQuery", true);
   await mongoose.connect(uri);
 }
-
-module.exports = { connectDb };
