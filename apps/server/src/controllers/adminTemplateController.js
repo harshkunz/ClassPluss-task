@@ -2,59 +2,19 @@ import Template from "../models/Template.js";
 import TemplateCategory from "../models/TemplateCategory.js";
 import SharedImage from "../models/SharedImage.js";
 
-function getAbsoluteUrl(req, relativePath) {
-  if (!relativePath) return relativePath;
-  if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
-    return relativePath;
-  }
-
-  const base = process.env.SERVER_BASE_URL || `${req.protocol}://${req.get("host")}`;
-  return `${base}${relativePath.startsWith("/") ? "" : "/"}${relativePath}`;
-}
-
-function ensureCustomCategory() {
-  return TemplateCategory.findOneAndUpdate(
-    { slug: "custom" },
-    {
-      $setOnInsert: {
-        name: "Custom",
-        slug: "custom",
-        description: "User uploaded templates",
-        sortOrder: 999,
-        isActive: true,
-      },
-    },
-    { upsert: true, new: true }
-  );
-}
-
 export async function createTemplate(req, res, next) {
   try {
-    const { title, categoryId, categorySlug } = req.body;
-
-    if (!title) {
-      return res.status(400).json({ message: "Title is required" });
+    const { title } = req.body;
+    if (!title || !req.file?.buffer) {
+      return res.status(400).json({ message: "Title and image required" });
     }
 
-    if (!req.file?.buffer) {
-      return res.status(400).json({ message: "Image file is required" });
-    }
-
-    let category = null;
-    const slug = String(categorySlug || categoryId || "").toLowerCase().trim();
-
-    if (categoryId && /^[0-9a-fA-F]{24}$/.test(categoryId)) {
-      category = await TemplateCategory.findById(categoryId);
-    } else if (slug) {
-      category = await TemplateCategory.findOne({ slug });
-    }
-
-    if (!category && slug === "custom") {
-      category = await ensureCustomCategory();
-    }
-
+    let category = await TemplateCategory.findOne({ slug: "custom" });
     if (!category) {
-      return res.status(400).json({ message: "Valid category is required" });
+      category = await TemplateCategory.create({
+        name: "Custom",
+        slug: "custom",
+      });
     }
 
     const template = new Template({
@@ -66,37 +26,34 @@ export async function createTemplate(req, res, next) {
       isPremium: false,
     });
 
-    template.imageUrl = getAbsoluteUrl(req, `/api/templates/${template._id}/image`);
+    template.imageUrl = `${req.protocol}://${req.get("host")}/api/templates/${template._id}/image`;
     await template.save();
 
-    const populated = await Template.findById(template._id)
+    const data = await Template.findById(template._id)
       .populate("category", "name slug")
       .lean();
 
-    return res.status(201).json({
+    res.status(201).json({
       template: {
-        ...populated,
-        imageUrl: getAbsoluteUrl(req, `/api/templates/${template._id}/image`),
+        ...data,
+        imageUrl: `${req.protocol}://${req.get("host")}/api/templates/${template._id}/image`,
       },
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 }
 
 export async function deleteTemplate(req, res, next) {
   try {
-    const template = await Template.findById(req.params.id);
+    const t = await Template.findById(req.params.id);
+    if (!t) return res.status(404).json({ message: "Not found" });
 
-    if (!template) {
-      return res.status(404).json({ message: "Template not found" });
-    }
+    await SharedImage.deleteMany({ template: t._id });
+    await t.deleteOne();
 
-    await SharedImage.deleteMany({ template: template._id });
-    await template.deleteOne();
-
-    return res.status(200).json({ deleted: true, templateId: template._id });
+    res.json({ deleted: true });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 }

@@ -1,60 +1,37 @@
 import TemplateCategory from "../models/TemplateCategory.js";
 import Template from "../models/Template.js";
 
-function slugify(value) {
-  return String(value)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
+function slug(name) {
+  return String(name).toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
 export async function createCategory(req, res, next) {
   try {
     const { name } = req.body;
+    if (!name) return res.status(400).json({ message: "Name required" });
 
-    if (!name) {
-      return res.status(400).json({ message: "Name is required" });
-    }
+    const s = slug(name);
+    const exists = await TemplateCategory.findOne({ slug: s });
+    if (exists) return res.status(409).json({ message: "Exists" });
 
-    const slug = slugify(name);
-    if (!slug) {
-      return res.status(400).json({ message: "Invalid category name" });
-    }
-
-    const existing = await TemplateCategory.findOne({ slug });
-    if (existing) {
-      return res.status(409).json({ message: "Category already exists" });
-    }
-
-    const category = await TemplateCategory.create({ name, slug });
-    return res.status(201).json({ category });
+    const cat = await TemplateCategory.create({ name, slug: s });
+    res.status(201).json({ category: cat });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 }
 
 export async function deleteCategory(req, res, next) {
   try {
     const { id } = req.params;
-    const query = /^[0-9a-fA-F]{24}$/.test(id)
-      ? { _id: id }
-      : { slug: String(id).toLowerCase() };
+    const cat = await TemplateCategory.findById(id);
+    if (!cat) return res.status(404).json({ message: "Not found" });
 
-    const category = await TemplateCategory.findOne(query);
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
-    }
+    await Template.deleteMany({ category: cat._id });
+    await cat.deleteOne();
 
-    const templates = await Template.find({ category: category._id }).select("_id").lean();
-    await Template.deleteMany({ category: category._id });
-    await category.deleteOne();
-
-    return res.status(200).json({
-      categoryId: category._id,
-      templatesDeleted: templates.length,
-    });
+    res.json({ deleted: true });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 }

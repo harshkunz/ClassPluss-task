@@ -86,7 +86,16 @@ export default function App() {
     return !user.name || !user.profileImageUrl;
   }, [user]);
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600 mb-2">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
   if (!token) return <AuthPage onAuth={handleAuth} />;
 
   return (

@@ -1,4 +1,4 @@
-const API_BASE_URL = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "http://localhost:5000";
+export const API_BASE_URL = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) || "http://localhost:5000";
 
 const TOKEN_KEY = "classplus_token";
 let cachedToken = null;
@@ -48,5 +48,3 @@ export async function apiRequest(path, options = {}) {
 
   return payload;
 }
-
-export { API_BASE_URL };
