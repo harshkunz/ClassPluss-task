@@ -30,9 +30,6 @@ const templateCategorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const TemplateCategory = mongoose.model(
-  "TemplateCategory",
-  templateCategorySchema
-);
+const TemplateCategory = mongoose.model("TemplateCategory", templateCategorySchema);
 
 export default TemplateCategory;

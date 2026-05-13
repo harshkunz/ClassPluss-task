@@ -1,59 +1,23 @@
 import express from "express";
-import {
-  registerEmail,
-  loginEmail,
-  authGoogle,
-  authGoogleStart,
-  authGoogleCallback,
-  authGuest,
-  updateProfile,
-  me,
-} from "../controllers/authController.js";
-import {
-  validateEmailRegister,
-  validateEmailLogin,
-  validateGoogleAuth,
-  validateGuestAuth,
-  validateProfileUpdate,
-  handleValidation,
-} from "../validators/authValidators.js";
 import { requireAuth } from "../middleware/auth.js";
+import {
+  emailLogin,
+  emailRegister,
+  guestLogin,
+  googleCallback,
+  googleStart,
+  me,
+  updateProfile,
+} from "../controllers/authController.js";
 
 const router = express.Router();
 
-router.post(
-  "/email/register",
-  validateEmailRegister,
-  handleValidation,
-  registerEmail
-);
-router.post(
-  "/email/login",
-  validateEmailLogin,
-  handleValidation,
-  loginEmail
-);
-router.post(
-  "/google",
-  validateGoogleAuth,
-  handleValidation,
-  authGoogle
-);
-router.get("/google/start", authGoogleStart);
-router.get("/google/callback", authGoogleCallback);
-router.post(
-  "/guest",
-  validateGuestAuth,
-  handleValidation,
-  authGuest
-);
+router.get("/google/start", googleStart);
+router.get("/google/callback", googleCallback);
+router.post("/email/register", emailRegister);
+router.post("/email/login", emailLogin);
+router.post("/guest", guestLogin);
 router.get("/me", requireAuth, me);
-router.put(
-  "/profile",
-  requireAuth,
-  validateProfileUpdate,
-  handleValidation,
-  updateProfile
-);
+router.put("/profile", requireAuth, updateProfile);
 
 export default router;

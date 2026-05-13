@@ -1,25 +1,14 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
-import { createCategory } from "../controllers/adminCategoryController.js";
-import { createTemplate } from "../controllers/adminTemplateController.js";
+import { createCategory, deleteCategory } from "../controllers/adminCategoryController.js";
+import { createTemplate, deleteTemplate } from "../controllers/adminTemplateController.js";
 
 const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), "uploads", "templates"));
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || ".png");
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.post("/templates", upload.single("image"), createTemplate);
+router.delete("/templates/:id", deleteTemplate);
 router.post("/categories", createCategory);
+router.delete("/categories/:id", deleteCategory);
 
 export default router;

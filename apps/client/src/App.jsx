@@ -15,13 +15,8 @@ export default function App() {
     const storedToken = getAuthToken();
     const storedUser = localStorage.getItem(USER_KEY);
 
-    if (storedToken) {
-      setToken(storedToken);
-    }
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedToken) setToken(storedToken);
+    if (storedUser) setUser(JSON.parse(storedUser));
 
     const url = new URL(window.location.href);
     const oauthToken = url.searchParams.get("token");
@@ -35,7 +30,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
-
+    
     const loadUser = async () => {
       if (!token) {
         setIsLoading(false);
@@ -91,13 +86,8 @@ export default function App() {
     return !user.name || !user.profileImageUrl;
   }, [user]);
 
-  if (isLoading) {
-    return null;
-  }
-
-  if (!token) {
-    return <AuthPage onAuth={handleAuth} />;
-  }
+  if (isLoading) return null;
+  if (!token) return <AuthPage onAuth={handleAuth} />;
 
   return (
     <>
@@ -106,6 +96,7 @@ export default function App() {
         onLogout={handleLogout}
         onProfileUpdated={handleProfileComplete}
       />
+
       {needsProfile && (
         <ProfileSetupModal user={user} onComplete={handleProfileComplete} />
       )}

@@ -1,190 +1,228 @@
 import { useMemo, useState } from "react";
-import { API_BASE_URL, apiRequest } from "../services/api";
+import { API_BASE_URL } from "../services/api";
 
 export default function AdminUploadModal({
-  categories,
   onClose,
   onCreated,
-  onCategoryCreated,
 }) {
   const [title, setTitle] = useState("");
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
-  const [file, setFile] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [message, setMessage] = useState("");
+
+  // fixed category
+  const categoryId = "custom";
+
+  const [file, setFile] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [msg, setMsg] =
+    useState("");
 
   const previewUrl = useMemo(() => {
     if (!file) return "";
+
     return URL.createObjectURL(file);
   }, [file]);
 
-  const handleSubmit = async (event) => {
+  async function handleSubmit(event) {
     event.preventDefault();
-    setIsSaving(true);
-    setMessage("");
+
+    setLoading(true);
+    setMsg("");
 
     try {
-      if (!title || !categoryId || !file) {
-        setMessage("Please fill all fields.");
+      if (!title || !file) {
+        setMsg(
+          "Please fill all fields."
+        );
+
         return;
       }
 
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("categoryId", categoryId);
-      formData.append("image", file);
+      const formData =
+        new FormData();
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/templates`, {
-        method: "POST",
-        body: formData,
-      });
+      formData.append(
+        "title",
+        title
+      );
 
-      const data = await response.json();
+      // always custom
+      formData.append(
+        "categoryId",
+        "custom"
+      );
+
+      formData.append(
+        "image",
+        file
+      );
+
+      const response =
+        await fetch(
+          `${API_BASE_URL}/api/admin/templates`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+      const data =
+        await response.json();
+
       if (!response.ok) {
-        throw new Error(data?.message || "Upload failed");
+        throw new Error(
+          data?.message ||
+            "Upload failed"
+        );
       }
 
-      onCreated?.(data.template);
-      onClose?.();
-    } catch (error) {
-      setMessage(error.message || "Upload failed");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+      // custom category always
+      const createdTemplate = {
+        ...data.template,
 
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) {
-      setMessage("Enter a category name first.");
-      return;
-    }
+        category:
+          "custom",
 
-    setIsSaving(true);
-    setMessage("");
-
-    try {
-      const data = await apiRequest("/api/admin/categories", {
-        method: "POST",
-        body: JSON.stringify({ name: newCategoryName.trim() }),
-      });
-
-      const created = {
-        id: data.category._id,
-        title: data.category.name,
-        count: 0,
-        slug: data.category.slug,
+        categoryLabel:
+          "Custom",
       };
 
-      onCategoryCreated?.(created);
-      setCategoryId(created.id);
-      setNewCategoryName("");
-      setMessage("Category created.");
+      onCreated?.(
+        createdTemplate
+      );
+
+      onClose?.();
     } catch (error) {
-      setMessage(error.message || "Unable to create category.");
+      setMsg(
+        error.message ||
+          "Upload failed"
+      );
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="w-full max-w-2xl rounded-3xl bg-white p-8 text-[#1c1b1f] shadow-[0_30px_60px_rgba(0,0,0,0.35)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+
+      <div className="w-full max-w-xl bg-white rounded-2xl border border-green-100 shadow-lg p-6">
+
+        {/* header */}
+
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#ff6f59]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-700">
               Upload
             </p>
-            <h2 className="mt-2 text-2xl font-semibold">Add a new template</h2>
-            <p className="mt-2 text-sm text-[#6f6c73]">
-              Upload a new template image and assign it to a category.
+
+            <h2 className="text-2xl font-semibold mt-2 text-gray-800">
+              Custom Template
+            </h2>
+
+            <p className="text-sm text-gray-500 mt-2">
+              Upload your own greeting template.
             </p>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-black/10 px-4 py-2 text-sm font-semibold"
+            className="px-4 py-2 text-black border border-gray-200 rounded-xl text-sm hover:bg-gray-50"
           >
             Close
           </button>
         </div>
 
-        <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-          <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
-            Title
+        {/* form */}
+
+        <form
+          onSubmit={
+            handleSubmit
+          }
+          className="mt-6 grid gap-4"
+        >
+
+          {/* title */}
+
+          <label className="grid gap-2 text-sm text-gray-900">
+
+            Template Name
+
             <input
               type="text"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Template title"
-              className="rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#2c5d63] focus:ring-4 focus:ring-[#2c5d63]/20"
+              onChange={(e) =>
+                setTitle(
+                  e.target.value
+                )
+              }
+              placeholder="Enter template name"
+              className="border text-black border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
             />
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
+
+          {/* fixed category */}
+
+          <div className="grid gap-2 text-sm text-gray-900">
+
             Category
-            <select
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-              className="rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#2c5d63] focus:ring-4 focus:ring-[#2c5d63]/20"
-            >
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid gap-2">
-            <label className="text-sm font-semibold text-[#6f6c73]">
-              New category
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(event) => setNewCategoryName(event.target.value)}
-                placeholder="Add new category"
-                className="flex-1 rounded-xl border border-black/10 px-4 py-3 text-base outline-none focus:border-[#2c5d63] focus:ring-4 focus:ring-[#2c5d63]/20"
-              />
-              <button
-                type="button"
-                onClick={handleCreateCategory}
-                disabled={isSaving}
-                className="rounded-xl border border-black/10 px-4 py-3 text-sm font-semibold text-[#2c5d63]"
-              >
-                Create
-              </button>
+
+            <div className="border border-gray-200 rounded-xl px-4 py-3 bg-green-50 text-green-700 font-medium">
+              Custom
             </div>
           </div>
-          <label className="grid gap-2 text-sm font-semibold text-[#6f6c73]">
-            Image
+
+          {/* upload image */}
+
+          <label className="grid gap-2 text-sm text-gray-900">
+
+            Upload Image
+
             <input
               type="file"
               accept="image/*"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
-              className="rounded-xl border border-dashed border-black/20 bg-white px-4 py-3 text-sm"
+              onChange={(e) =>
+                setFile(
+                  e.target
+                    .files?.[0] ||
+                    null
+                )
+              }
+              className="border border-dashed border-gray-300 rounded-xl px-4 py-3 bg-white text-sm"
             />
           </label>
+
+          {/* preview */}
+
           {previewUrl && (
             <img
               src={previewUrl}
               alt="Preview"
-              className="h-40 w-full rounded-2xl object-cover"
+              className="w-full h-52 object-cover rounded-2xl border"
             />
           )}
 
-          {message && (
-            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              {message}
-            </p>
+          {/* message */}
+
+          {msg && (
+            <div className="bg-green-50 border border-green-100 text-sm text-green-700 rounded-xl px-4 py-3">
+              {msg}
+            </div>
           )}
+
+          {/* submit */}
 
           <button
             type="submit"
-            disabled={isSaving}
-            className="mt-2 w-full rounded-2xl bg-[#2c5d63] px-4 py-3 text-sm font-semibold text-white disabled:cursor-progress disabled:opacity-70"
+            disabled={loading}
+            className="w-full bg-green-600 hover:bg-green-700 text-white rounded-2xl py-3 text-sm"
           >
-            {isSaving ? "Uploading..." : "Upload template"}
+            {loading
+              ? "Uploading..."
+              : "Upload Template"}
           </button>
         </form>
       </div>

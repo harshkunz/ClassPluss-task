@@ -1,529 +1,510 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+
 import AdminUploadModal from "../components/AdminUploadModal";
 import ProfileEditModal from "../components/ProfileEditModal";
 import SubscriptionModal from "../components/SubscriptionModal";
+
+import NavbarSection from "../components/NavbarSection";
+import PreviewSection from "../components/PreviewSection";
 import { apiRequest } from "../services/api";
-
-const FALLBACK_USER = {
-  name: "Aanya Sharma",
-  photo:
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
-};
-
-const FALLBACK_CATEGORIES = [
-  {
-    id: "birthday",
-    title: "Birthday",
-    count: 18,
-  },
-  {
-    id: "anniversary",
-    title: "Anniversary",
-    count: 12,
-  },
-  {
-    id: "festivals",
-    title: "Festivals",
-    count: 22,
-  },
-  {
-    id: "gratitude",
-    title: "Gratitude",
-    count: 9,
-  },
-];
-
-const FALLBACK_TEMPLATES = [
-  {
-    id: "t1",
-    title: "Golden Glow",
-    category: "birthday",
-    isPremium: false,
-    image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t2",
-    title: "Blush Petals",
-    category: "anniversary",
-    isPremium: true,
-    image:
-      "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t3",
-    title: "Neon Diwali",
-    category: "festivals",
-    isPremium: true,
-    image:
-      "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t4",
-    title: "Sunlit Bloom",
-    category: "birthday",
-    isPremium: false,
-    image:
-      "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t5",
-    title: "Modern Spark",
-    category: "festivals",
-    isPremium: true,
-    image:
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t6",
-    title: "Satin Rose",
-    category: "anniversary",
-    isPremium: false,
-    image:
-      "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t7",
-    title: "Festival Lights",
-    category: "festivals",
-    isPremium: false,
-    image:
-      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: "t8",
-    title: "Soft Gratitude",
-    category: "gratitude",
-    isPremium: true,
-    image:
-      "https://images.unsplash.com/photo-1459666644539-a9755287d6b0?auto=format&fit=crop&w=800&q=80",
-  },
-];
+import { FALLBACK_USER, FALLBACK_CATEGORIES, FALLBACK_TEMPLATES } from "../store/data";
 
 export default function HomePage({ user, onLogout, onProfileUpdated }) {
-  const [activeCategory, setActiveCategory] = useState("birthday");
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    FALLBACK_TEMPLATES[0]
-  );
-  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
-  const [templates, setTemplates] = useState(FALLBACK_TEMPLATES);
-  const [loadError, setLoadError] = useState("");
+
+  const [activeCategory, setActiveCategory] = useState( FALLBACK_CATEGORIES[0]?.id || "birthday");
+  const [templates, setTemplates] = useState( FALLBACK_TEMPLATES);
+  const [categories, setCategories] = useState( FALLBACK_CATEGORIES);
+  const [selectedTemplate, setSelectedTemplate] = useState(FALLBACK_TEMPLATES[0]);
+
   const [plans, setPlans] = useState([]);
-  const [isPremiumUser, setIsPremiumUser] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
   const [showUpsell, setShowUpsell] = useState(false);
   const [showAdminUpload, setShowAdminUpload] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [shareUrl, setShareUrl] = useState("");
 
   const activeUser = {
-    name: user?.name || FALLBACK_USER.name,
-    photo: user?.profileImageUrl || user?.photo || FALLBACK_USER.photo,
+    name:
+      user?.name ||
+      FALLBACK_USER.name,
+
+    photo:
+      user?.profileImageUrl ||
+      user?.photo ||
+      FALLBACK_USER.photo,
   };
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const fetchTemplates = async () => {
+    async function loadData() {
       try {
-        const [categoryData, templateData, planData, statusData] =
-          await Promise.all([
-            apiRequest("/api/templates/categories"),
-            apiRequest("/api/templates"),
-            apiRequest("/api/billing/plans"),
-            apiRequest("/api/billing/status"),
-          ]);
+        const [
+          categoryData,
+          templateData,
+          planData,
+          statusData,
+        ] = await Promise.all([
+          apiRequest("/api/templates/categories"),
+          apiRequest("/api/templates"),
+          apiRequest("/api/billing/plans"),
+          apiRequest("/api/billing/status"),
+        ]);
 
-        if (!isMounted) return;
+        if (!mounted) return;
 
-        const mappedCategories = (categoryData.categories || []).map(
-          (category) => ({
-            id: category._id,
-            title: category.name,
-            count: category.count || 0,
-            slug: category.slug,
-          })
-        );
+        const newCategories = (categoryData.categories || []).map((item) => ({
+          id: item._id,
+          title: item.name,
+          count: item.count || 0,
+          slug: item.slug,
+        }));
 
-        const mappedTemplates = (templateData.templates || []).map(
-          (template) => ({
-            id: template._id,
-            title: template.title,
-            category: template.category?._id || template.category,
-            categoryLabel: template.category?.name,
-            image: template.imageUrl,
-            overlayDefaults: template.overlayDefaults,
-            isPremium: template.isPremium || false,
-            premiumTier: template.premiumTier,
-          })
-        );
+        const newTemplates = (templateData.templates || []).map((item) => ({
+          id: item._id,
+          title: item.title,
+          category: item.category?._id || item.category,
+          categoryLabel: item.category?.name,
+          image: item.imageUrl,
+          isPremium: item.isPremium || false,
+        }));
 
-        if (mappedCategories.length > 0) {
-          setCategories(mappedCategories);
-          setActiveCategory(mappedCategories[0].id);
+        if (newCategories.length > 0) {
+          setCategories((prev) => {
+            const allCategories = [...prev, ];
+
+            newCategories.forEach((cat) => {
+              const exists = allCategories.find((item) => item.id === cat.id);
+              if (!exists) allCategories.push(cat);
+              
+            });
+
+            return allCategories;
+          });
         }
 
-        if (mappedTemplates.length > 0) {
-          setTemplates(mappedTemplates);
-          setSelectedTemplate(mappedTemplates[0]);
+        // merge templates with dummy templates
+        if (newTemplates.length > 0) {
+          setTemplates((prev) => {
+            const allTemplates = [
+              ...prev,
+            ];
+
+            newTemplates.forEach((temp) => {
+              const exists =
+                allTemplates.find(
+                  (item) =>
+                    item.id === temp.id
+                );
+
+              if (!exists) {
+                allTemplates.push(temp);
+              }
+            });
+
+            return allTemplates;
+          });
         }
 
-        setPlans(planData.plans || []);
-        setIsPremiumUser(Boolean(statusData.isPremium));
+        setPlans(
+          planData.plans || []
+        );
+
+        setIsPremiumUser(
+          Boolean(statusData.isPremium)
+        );
       } catch (error) {
-        if (isMounted) {
-          setLoadError("Unable to load templates. Showing demo data.");
-        }
+        setLoadError(
+          "Unable to load latest data. Showing demo templates."
+        );
       }
-    };
+    }
 
-    fetchTemplates();
+    loadData();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
 
-  const filteredTemplates = useMemo(() => {
-    return templates.filter((template) => template.category === activeCategory);
-  }, [activeCategory, templates]);
+  // filtered templates
+  const filteredTemplates =
+    templates.filter(
+      (item) =>
+        item.category === activeCategory
+    ) || FALLBACK_TEMPLATES;
 
-  const handleCategoryChange = (categoryId) => {
+  function handleCategoryChange(
+    categoryId
+  ) {
     setActiveCategory(categoryId);
-    const nextTemplate = templates.find(
-      (template) => template.category === categoryId
-    );
-    if (nextTemplate) {
-      setSelectedTemplate(nextTemplate);
-    }
-  };
 
-  const handleTemplateSelect = (template) => {
-    if (template.isPremium && !isPremiumUser) {
+    const nextTemplate =
+      templates.find(
+        (item) =>
+          item.category === categoryId
+      );
+
+    if (nextTemplate) {
+      setSelectedTemplate(
+        nextTemplate
+      );
+    }
+  }
+
+  async function handleDeleteCategory(category) {
+    if (!category?.id) return;
+
+    const confirmed = window.confirm(
+      `Delete ${category.title}? This will remove its uploaded templates too.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await apiRequest(`/api/admin/categories/${category.id}`, {
+        method: "DELETE",
+      });
+
+      const nextTemplates = templates.filter(
+        (item) => item.category !== category.id
+      );
+      const nextCategories = categories.filter(
+        (item) => item.id !== category.id
+      );
+      const nextActiveCategory =
+        activeCategory === category.id
+          ? FALLBACK_CATEGORIES[0]?.id || "birthday"
+          : activeCategory;
+
+      setCategories(nextCategories);
+      setTemplates(nextTemplates);
+
+      setActiveCategory(nextActiveCategory);
+
+      const nextSelected =
+        nextTemplates.find(
+          (item) => item.category === nextActiveCategory
+        ) || nextTemplates[0] || FALLBACK_TEMPLATES[0];
+
+      setSelectedTemplate(nextSelected);
+    } catch (error) {
+      setLoadError(error.message || "Unable to delete category");
+    }
+  }
+
+  function handleTemplateSelect(
+    template
+  ) {
+    if (
+      template.isPremium &&
+      !isPremiumUser
+    ) {
       setShowUpsell(true);
       return;
     }
 
     setSelectedTemplate(template);
-  };
+  }
 
-  const handleAdminCreated = (template) => {
+  // admin uploaded template
+  function handleAdminCreated(
+    template
+  ) {
     if (!template) return;
-    const mapped = {
+
+    const newTemplate = {
       id: template._id,
       title: template.title,
-      category: template.category?._id || template.category,
-      categoryLabel: template.category?.name,
+
+      category:
+        template.category?._id ||
+        template.category,
+
+      categoryLabel:
+        template.category?.name,
+
       image: template.imageUrl,
-      overlayDefaults: template.overlayDefaults,
-      isPremium: template.isPremium || false,
-      premiumTier: template.premiumTier,
+
+      isPremium:
+        template.isPremium || false,
     };
 
-    setTemplates((prev) => [mapped, ...prev]);
-    if (mapped.category === activeCategory) {
-      setSelectedTemplate(mapped);
-    }
-  };
+    setTemplates((prev) => {
+      return [
+        newTemplate,
+        ...prev,
+      ];
+    });
 
-  const handleShare = async () => {
-    if (!selectedTemplate?.id) {
-      setShareMessage("Select a template before sharing.");
-      return;
+    // show uploaded template instantly
+    if (
+      newTemplate.category ===
+      activeCategory
+    ) {
+      setSelectedTemplate(
+        newTemplate
+      );
     }
+  }
+
+  async function handleShare() {
+    if (!selectedTemplate?.id)
+      return;
+
     setIsSharing(true);
-    setShareMessage("Rendering your share image...");
+
+    setShareMessage(
+      "Preparing image..."
+    );
 
     try {
-      const data = await apiRequest("/api/share/render", {
-        method: "POST",
-        body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          name: activeUser.name,
-          photoUrl: activeUser.photo,
-        }),
-      });
-      const imageUrl = data.imageUrl;
+      const data =
+        await apiRequest(
+          "/api/share/render",
+          {
+            method: "POST",
 
-      setShareUrl(imageUrl);
-      setShareMessage("Ready to share.");
+            body: JSON.stringify({
+              templateId:
+                selectedTemplate.id,
+
+              name: activeUser.name,
+
+              photoUrl:
+                activeUser.photo,
+            }),
+          }
+        );
+
+      setShareUrl(data.imageUrl);
+
+      setShareMessage(
+        "Image ready for sharing"
+      );
 
       if (navigator.share) {
-        await navigator.share({
-          title: "ClassPlus Greeting",
-          text: "Check out my personalized template!",
-          url: imageUrl,
-        });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(imageUrl);
-        setShareMessage("Link copied. Share it anywhere.");
-      } else {
-        setShareMessage("Copy this link to share.");
+        try {
+          await navigator.share({
+            title: "Greeting Card",
+
+            text: "Check my greeting card",
+
+            url: data.imageUrl,
+          });
+          return;
+        } catch {
+          // fall back below
+        }
       }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(
+          data.imageUrl
+        );
+      }
+
+      window.open(
+        data.imageUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+
+      setShareMessage(
+        "Share link copied and opened in a new tab"
+      );
     } catch (error) {
-      setShareMessage("Unable to share right now. Try again in a moment.");
+      setShareMessage(
+        "Sharing failed"
+      );
     } finally {
       setIsSharing(false);
     }
-  };
+  }
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0f1219] text-[#f7f4ee]">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute right-[-120px] top-[10%] h-[460px] w-[460px] rounded-full bg-[radial-gradient(circle,rgba(244,201,93,0.3),transparent_70%)] blur-md animate-[orbitPulse_8s_ease-in-out_infinite]" />
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:120px_120px,40px_40px] opacity-30" />
-      </div>
+ return (
+  <div className="min-h-screen bg-green-50 px-5 py-8">
+    <div className="max-w-7xl mx-auto">
 
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-10">
-        <nav className="mb-10 flex flex-wrap items-center justify-between gap-4 rounded-full border border-white/10 bg-[#171a22]/90 px-5 py-3 shadow-[0_20px_40px_rgba(10,12,18,0.35)] backdrop-blur">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d212b] text-xs font-bold uppercase tracking-[0.2em] text-[#f4c95d]">
-              CP
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-[#b6b2ab]">
-                ClassPlus
-              </p>
-              <p className="text-sm font-semibold">Template Studio</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#0f1219] px-3 py-2">
-              <img
-                src={activeUser.photo}
-                alt={activeUser.name}
-                className="h-9 w-9 rounded-full object-cover"
-              />
-              <div>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-[#b6b2ab]">
-                  Welcome back
-                </span>
-                <strong className="block text-xs font-semibold">
-                  {activeUser.name}
-                </strong>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowProfileEdit(true)}
-              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#b6b2ab]"
-            >
-              Edit Profile
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAdminUpload(true)}
-              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#ff6f59]"
-            >
-              Upload
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="rounded-full border border-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#f4c95d]"
-            >
-              Logout
-            </button>
-          </div>
-        </nav>
+      {/* navbar */}
+      <NavbarSection
+        activeUser={activeUser}
+        onLogout={onLogout}
+        setShowProfileEdit={setShowProfileEdit}
+        setShowAdminUpload={setShowAdminUpload}
+      />
 
-        <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      {/* error */}
+      {loadError && (
+        <div className="bg-red-100 text-red-600 px-4 py-3 rounded-xl mt-5">
+          {loadError}
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-[2fr_420px] gap-6 mt-6 items-start">
+        {/* left side */}
+
+        <div className="bg-white border border-green-100 rounded-2xl p-5 shadow-md">
+          {/* categories */}
+
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f4c95d]">
-              ClassPlus Templates
+            <p className="text-sm font-semibold text-green-700">
+              Categories
             </p>
-            <h1 className="mt-2 font-alt text-4xl font-semibold leading-tight sm:text-5xl">
-              Pick a template, personalize instantly.
-            </h1>
-            <p className="mt-3 max-w-xl text-base text-[#b6b2ab]">
-              Browse curated collections, then preview your name and photo on every
-              design.
-            </p>
+
+            <div className="flex flex-wrap gap-3 mt-4">
+              {categories.map((item) => (
+                <div
+                  key={item.id}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition ${
+                    activeCategory === item.id
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-green-50 text-gray-700 border-transparent"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCategoryChange(item.id)
+                    }
+                    className="leading-none"
+                  >
+                    {item.title}
+                  </button>
+
+                  {item.slug &&
+                    !["birthday", "anniversary", "festivals", "gratitude", "friendship", "wedding", "motivation", "farewell"].includes(item.slug) && (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${item.title}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCategory(item);
+                        }}
+                        className="h-5 w-5 rounded-full bg-white/90 text-green-700 flex items-center justify-center text-xs font-bold hover:bg-white"
+                      >
+                        ×
+                      </button>
+                    )}
+                </div>
+              ))}
+            </div>
           </div>
-        </header>
 
-        {loadError && (
-          <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {loadError}
-          </p>
-        )}
+          {/* templates */}
 
-        <section className="mb-7 flex flex-wrap gap-3">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                activeCategory === category.id
-                  ? "bg-[#f4c95d] text-[#151515]"
-                  : "bg-[#1d212b] text-[#f7f4ee]"
-              }`}
-              onClick={() => handleCategoryChange(category.id)}
-            >
-              <span>{category.title}</span>
-              <em
-                className={`rounded-full px-2 py-0.5 text-xs not-italic ${
-                  activeCategory === category.id
-                    ? "bg-black/20 text-[#151515]"
-                    : "bg-[#f4c95d]/20 text-[#f4c95d]"
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5 mt-7 max-h-[900px] overflow-y-auto pr-2 custom-scroll">
+
+            {filteredTemplates.map((template) => (
+              <div
+                key={template.id}
+                onClick={() =>
+                  handleTemplateSelect(template)
+                }
+                className={`rounded-2xl overflow-hidden border cursor-pointer transition bg-white ${
+                  selectedTemplate.id ===
+                  template.id
+                    ? "border-green-500"
+                    : "border-gray-200"
                 }`}
               >
-                {category.count}
-              </em>
-            </button>
-          ))}
-        </section>
-
-        <section className="grid gap-8 lg:grid-cols-[2.2fr_1fr]">
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredTemplates.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                className={`overflow-hidden rounded-2xl border transition ${
-                  selectedTemplate.id === template.id
-                    ? "border-[#f4c95d]/60 translate-y-[-4px]"
-                    : "border-transparent"
-                } bg-[#171a22] text-left shadow-[0_30px_60px_rgba(10,12,18,0.45)]`}
-                onClick={() => handleTemplateSelect(template)}
-              >
-                <div className="relative h-44 overflow-hidden">
+                <div className="relative">
                   <img
                     src={template.image}
                     alt={template.title}
-                    className="h-full w-full object-cover"
+                    className="w-full h-52 object-cover"
                   />
-                  <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[10px] uppercase tracking-[0.2em]">
-                    Live Preview
+
+                  <div className="absolute bottom-3 left-3 text-white">
+                    <p className="font-semibold drop-shadow">
+                      {activeUser.name}
+                    </p>
                   </div>
-                  <div
-                    className={`absolute right-3 top-3 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${
-                      template.isPremium
-                        ? "bg-[#ff6f59] text-white"
-                        : "bg-[#f4c95d] text-[#151515]"
-                    }`}
-                  >
-                    {template.isPremium ? "Premium" : "Free"}
-                  </div>
-                  <div className="absolute bottom-4 left-4 text-lg font-semibold drop-shadow-[0_6px_16px_rgba(0,0,0,0.5)]">
-                    {activeUser.name}
-                  </div>
+
                   <img
-                    className="absolute bottom-4 right-4 h-14 w-14 rounded-full border-2 border-white object-cover"
                     src={activeUser.photo}
                     alt={activeUser.name}
+                    className="absolute bottom-3 right-3 h-12 w-12 rounded-full border-2 border-white object-cover"
                   />
                 </div>
+
                 <div className="p-4">
-                  <h3 className="text-base font-semibold">{template.title}</h3>
-                  <p className="mt-1 text-sm text-[#b6b2ab]">
-                    {template.categoryLabel ||
-                      categories.find((c) => c.id === template.category)?.title}
+                  <h3 className="font-semibold text-gray-800">
+                    {template.title}
+                  </h3>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    {template.categoryLabel}
                   </p>
-                  <span className="mt-2 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-[#b6b2ab]">
-                    {template.isPremium ? "Premium" : "Free"}
-                  </span>
+
+                  <div className="mt-3">
+                    <span
+                      className={`text-xs px-3 py-1 rounded-full ${
+                        template.isPremium
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {template.isPremium ? "Premium" : "Free"}
+                    </span>
+                  </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
+        </div>
 
-          <aside className="grid gap-4 rounded-2xl border border-white/10 bg-[#171a22] p-5 shadow-[0_30px_60px_rgba(10,12,18,0.45)]">
-            <div>
-              <h2 className="text-xl font-semibold">Live preview</h2>
-              <p className="mt-1 text-sm text-[#b6b2ab]">
-                See your overlayed name and photo by default.
-              </p>
-            </div>
-            <div className="relative h-72 overflow-hidden rounded-2xl">
-              <img
-                src={selectedTemplate.image}
-                alt={selectedTemplate.title}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 flex flex-col items-start justify-end gap-3 bg-gradient-to-b from-transparent via-black/10 to-black/60 p-5">
-                <span className="text-2xl font-semibold">{activeUser.name}</span>
-                <img
-                  src={activeUser.photo}
-                  alt={activeUser.name}
-                  className="h-[70px] w-[70px] rounded-[24px] border-4 border-white object-cover"
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold">{selectedTemplate.title}</h3>
-                <p className="text-sm text-[#b6b2ab]">
-                  {selectedTemplate.categoryLabel ||
-                    categories.find((c) => c.id === selectedTemplate.category)?.title}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold"
-                >
-                  Customize Template
-                </button>
-                <button
-                  type="button"
-                  className="rounded-full bg-[#ff6f59] px-4 py-2 text-sm font-semibold text-white disabled:cursor-progress disabled:opacity-70"
-                  onClick={handleShare}
-                  disabled={isSharing}
-                >
-                  {isSharing ? "Sharing..." : "Share"}
-                </button>
-              </div>
-            </div>
-            <div className="grid gap-2 rounded-2xl border border-white/10 bg-[#1d212b] p-4 text-sm text-[#b6b2ab]">
-              <div>
-                <h4 className="text-sm font-semibold text-[#f7f4ee]">Share via</h4>
-                <p className="mt-1 text-xs text-[#b6b2ab]">
-                  WhatsApp, Instagram, Email, and more using your device share
-                  sheet.
-                </p>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span>{shareMessage || "Your share link will appear here."}</span>
-                {shareUrl && (
-                  <a
-                    href={shareUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-[#f4c95d]"
-                  >
-                    View image
-                  </a>
-                )}
-              </div>
-            </div>
-          </aside>
-        </section>
+        {/* right side */}
+
+        <div className="sticky top-5 self-start">
+          <PreviewSection
+            selectedTemplate={selectedTemplate}
+            activeUser={activeUser}
+            handleShare={handleShare}
+            isSharing={isSharing}
+            shareMessage={shareMessage}
+            shareUrl={shareUrl}
+          />
+        </div>
       </div>
-      {showUpsell && plans.length > 0 && (
+    </div>
+
+    {showUpsell &&
+      plans.length > 0 && (
         <SubscriptionModal
           plans={plans}
-          onClose={() => setShowUpsell(false)}
-        />
-      )}
-      {showAdminUpload && (
-        <AdminUploadModal
-          categories={categories}
-          onClose={() => setShowAdminUpload(false)}
-          onCreated={handleAdminCreated}
-          onCategoryCreated={(category) =>
-            setCategories((prev) => [category, ...prev])
+          onClose={() =>
+            setShowUpsell(false)
           }
         />
       )}
-      {showProfileEdit && (
-        <ProfileEditModal
-          user={user}
-          onClose={() => setShowProfileEdit(false)}
-          onSaved={onProfileUpdated}
-        />
-      )}
-    </div>
-  );
+
+    {showAdminUpload && (
+      <AdminUploadModal
+        onClose={() =>
+          setShowAdminUpload(false)
+        }
+        onCreated={
+          handleAdminCreated
+        }
+      />
+    )}
+
+    {showProfileEdit && (
+      <ProfileEditModal
+        user={user}
+        onClose={() =>
+          setShowProfileEdit(false)
+        }
+        onSaved={
+          onProfileUpdated
+        }
+      />
+    )}
+  </div>
+);
 }

@@ -1,26 +1,32 @@
 import crypto from "crypto";
-import path from "path";
 import sharp from "sharp";
-
 import SharedImage from "../models/SharedImage.js";
 import Template from "../models/Template.js";
 import { loadImageBuffer } from "../utils/imageLoader.js";
 
 function getAbsoluteUrl(req, relativePath) {
+  if (!relativePath) return relativePath;
+  if (relativePath.startsWith("http://") || relativePath.startsWith("https://")) {
+    return relativePath;
+  }
+
   const base = process.env.SERVER_BASE_URL || `${req.protocol}://${req.get("host")}`;
-  return `${base}${relativePath}`;
+  return `${base}${relativePath.startsWith("/") ? "" : "/"}${relativePath}`;
+}
+
+function sanitizeText(value) {
+  return String(value || "").replace(/[<>]/g, "");
 }
 
 function buildNameSvg(text, fontSize, color, width, height) {
-  const safeText = String(text || "").replace(/[<>]/g, "");
-  return Buffer.from(
-    `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  return Buffer.from(`
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <style>
-        .label { fill: ${color}; font-size: ${fontSize}px; font-family: Arial, sans-serif; font-weight: 600; }
+        .label { fill: ${color}; font-size: ${fontSize}px; font-family: Arial, sans-serif; font-weight: 700; }
       </style>
-      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" class="label">${safeText}</text>
-    </svg>`
-  );
+      <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" class="label">${sanitizeText(text)}</text>
+    </svg>
+  `);
 }
 
 export async function renderShareImage(req, res, next) {
@@ -36,89 +42,62 @@ export async function renderShareImage(req, res, next) {
       return res.status(404).json({ message: "Template not found" });
     }
 
-    const templateBuffer = await loadImageBuffer(template.imageUrl);
+    const templateBuffer = template.imageData
+      ? Buffer.from(template.imageData)
+      : await loadImageBuffer(getAbsoluteUrl(req, template.imageUrl));
+
     const baseImage = sharp(templateBuffer);
     const metadata = await baseImage.metadata();
-
     const width = metadata.width || 1080;
     const height = metadata.height || 1080;
-
     const overlayDefaults = template.overlayDefaults || {};
     const composites = [];
 
-    if (overlayDefaults.showPhoto && photoUrl) {
+    if (overlayDefaults.showPhoto !== false && photoUrl) {
       const photoBuffer = await loadImageBuffer(photoUrl);
-      const photoSize = Math.min(width, height) * 0.28;
-      const photoLeft = Math.round(
-        (overlayDefaults.photoPosition?.x || 0.5) * width - photoSize / 2
-      );
-      const photoTop = Math.round(
-        (overlayDefaults.photoPosition?.y || 0.5) * height - photoSize / 2
-      );
-
-      const circleSvg = Buffer.from(
-        `<svg width="${photoSize}" height="${photoSize}">
-          <circle cx="${photoSize / 2}" cy="${photoSize / 2}" r="${photoSize / 2}" fill="white" />
-        </svg>`
-      );
+      const photoSize = Math.round(Math.min(width, height) * 0.28);
+      const photoLeft = Math.round(((overlayDefaults.photoPosition?.x || 0.5) * width) - photoSize / 2);
+      const photoTop = Math.round(((overlayDefaults.photoPosition?.y || 0.5) * height) - photoSize / 2);
 
       const maskedPhoto = await sharp(photoBuffer)
-        .resize(Math.round(photoSize), Math.round(photoSize))
-        .composite([{ input: circleSvg, blend: "dest-in" }])
+        .resize(photoSize, photoSize)
         .png()
         .toBuffer();
 
       composites.push({ input: maskedPhoto, left: photoLeft, top: photoTop });
     }
 
-    if (overlayDefaults.showName && name) {
+    if (overlayDefaults.showName !== false && name) {
       const fontSize = overlayDefaults.nameFontSize || 36;
       const nameWidth = Math.round(width * 0.6);
       const nameHeight = Math.round(fontSize * 1.8);
-      const nameLeft = Math.round(
-        (overlayDefaults.namePosition?.x || 0.5) * width - nameWidth / 2
-      );
-      const nameTop = Math.round(
-        (overlayDefaults.namePosition?.y || 0.5) * height - nameHeight / 2
-      );
+      const nameLeft = Math.round(((overlayDefaults.namePosition?.x || 0.5) * width) - nameWidth / 2);
+      const nameTop = Math.round(((overlayDefaults.namePosition?.y || 0.5) * height) - nameHeight / 2);
 
-      const nameSvg = buildNameSvg(
-        name,
-        fontSize,
-        overlayDefaults.nameColor || "#ffffff",
-        nameWidth,
-        nameHeight
-      );
-
-      composites.push({ input: nameSvg, left: nameLeft, top: nameTop });
+      composites.push({
+        input: buildNameSvg(name, fontSize, overlayDefaults.nameColor || "#ffffff", nameWidth, nameHeight),
+        left: nameLeft,
+        top: nameTop,
+      });
     }
 
     const outputBuffer = await baseImage.composite(composites).png().toBuffer();
-
     const shareId = crypto.randomUUID();
-    const fileName = `${shareId}.png`;
-    const outputPath = path.join("uploads", "shared", fileName);
-    const absolutePath = path.join(process.cwd(), outputPath);
+    const sharePath = `/api/share/${shareId}/image`;
 
-    await sharp(outputBuffer).toFile(absolutePath);
-
-    const outputUrl = getAbsoluteUrl(
-      req,
-      `/${outputPath.replace(/\\/g, "/")}`
-    );
-
-    const sharedImage = await SharedImage.create({
+    await SharedImage.create({
       shareId,
       template: template._id,
       userName: name || null,
       userPhotoUrl: photoUrl || null,
-      outputPath,
-      outputUrl,
+      outputData: outputBuffer,
+      outputContentType: "image/png",
+      outputUrl: sharePath,
     });
 
     return res.status(201).json({
-      shareId: sharedImage.shareId,
-      imageUrl: sharedImage.outputUrl,
+      shareId,
+      imageUrl: getAbsoluteUrl(req, sharePath),
     });
   } catch (error) {
     return next(error);
@@ -127,17 +106,31 @@ export async function renderShareImage(req, res, next) {
 
 export async function getShare(req, res, next) {
   try {
-    const sharedImage = await SharedImage.findOne({
-      shareId: req.params.shareId,
-    })
+    const share = await SharedImage.findOne({ shareId: req.params.shareId })
       .populate("template", "title imageUrl")
       .lean();
 
-    if (!sharedImage) {
+    if (!share) {
       return res.status(404).json({ message: "Share not found" });
     }
 
-    return res.status(200).json({ share: sharedImage });
+    return res.status(200).json({ share });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getShareImage(req, res, next) {
+  try {
+    const share = await SharedImage.findOne({ shareId: req.params.shareId }).lean();
+
+    if (!share) {
+      return res.status(404).json({ message: "Share not found" });
+    }
+
+    res.set("Content-Type", share.outputContentType || "image/png");
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    return res.status(200).send(Buffer.from(share.outputData));
   } catch (error) {
     return next(error);
   }

@@ -6,7 +6,7 @@ loadEnv();
 
 const port = process.env.PORT || 5000;
 
-async function startServer() {
+async function start() {
   await connectDb(process.env.MONGODB_URI);
 
   app.listen(port, () => {
@@ -14,7 +14,7 @@ async function startServer() {
   });
 }
 
-startServer().catch((error) => {
+start().catch((error) => {
   console.error("Failed to start server", error);
   process.exit(1);
 });

@@ -38,7 +38,10 @@ const templateSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    thumbnailUrl: {
+    imageData: {
+      type: Buffer,
+    },
+    imageContentType: {
       type: String,
       trim: true,
     },

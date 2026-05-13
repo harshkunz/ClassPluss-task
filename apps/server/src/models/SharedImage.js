@@ -21,13 +21,18 @@ const sharedImageSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    outputPath: {
-      type: String,
+    outputData: {
+      type: Buffer,
       required: true,
+    },
+    outputContentType: {
+      type: String,
+      default: "image/png",
     },
     outputUrl: {
       type: String,
       required: true,
+      trim: true,
     },
   },
   { timestamps: true }
